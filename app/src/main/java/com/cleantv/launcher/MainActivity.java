@@ -7,15 +7,21 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.KeyEvent;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Space;
@@ -28,15 +34,27 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** The home screen: a clock, two buttons and a grid of app tiles that can be reordered and hidden. */
+/**
+ * The home screen, laid out like Apple TV's: a top shelf showing the selected app large over a blurred backdrop,
+ * a frosted dock with the first row of apps, then the rest of the apps. Tiles can be reordered and hidden.
+ */
 public final class MainActivity extends Activity {
     private final ExecutorService loader = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
 
     private LayoutStore store;
+    private final Backdrops backdrops = new Backdrops();
     private ScrollView scroll;
+    private ImageView backdrop;
+    private FrameLayout shelf;
+    private TextView shelfTitle;
+    private TextView shelfHint;
+    private ImageView shelfBanner;
+    private LinearLayout dock;
     private LinearLayout grid;
     private int columns;
+    /** The app the top shelf shows. */
+    private String shelfKey;
 
     /** Every installed app by key, from the last load. */
     private final Map<String, AppEntry> apps = new HashMap<>();
@@ -57,8 +75,16 @@ public final class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         store = new LayoutStore(this);
         scroll = findViewById(R.id.scroll);
+        backdrop = findViewById(R.id.backdrop);
+        shelf = findViewById(R.id.shelf);
+        shelfTitle = findViewById(R.id.shelf_title);
+        shelfHint = findViewById(R.id.shelf_hint);
+        shelfBanner = findViewById(R.id.shelf_banner);
+        shelfBanner.setClipToOutline(true);
+        dock = findViewById(R.id.dock);
         grid = findViewById(R.id.grid);
         columns = getResources().getInteger(R.integer.columns);
+        sizeShelf();
 
         findViewById(R.id.settings_button).setOnClickListener(v -> start(new Intent(Settings.ACTION_SETTINGS),
                 getString(R.string.settings)));
@@ -120,6 +146,7 @@ public final class MainActivity extends Activity {
                 if (isDestroyed()) return;
                 apps.clear();
                 installed.clear();
+                backdrops.clear();
                 for (AppEntry app : loaded) {
                     apps.put(app.key, app);
                     installed.add(app.key);
@@ -139,22 +166,37 @@ public final class MainActivity extends Activity {
         boolean hadTileFocus = focus == null || focus instanceof TileView;
 
         visible = AppOrder.arrange(installed, store.order(), store.hidden());
+        dock.removeAllViews();
         grid.removeAllViews();
-        grid.addView(sectionTitle(visible.isEmpty() ? R.string.no_apps : R.string.section_apps));
+        dock.setVisibility(visible.isEmpty() ? View.GONE : View.VISIBLE);
+        if (visible.isEmpty()) {
+            grid.addView(emptyText());
+            showShelf(null);
+        }
 
+        // The first row goes in the dock, the rest below it.
         int gap = getResources().getDimensionPixelSize(R.dimen.tile_gap);
         for (int start = 0; start < visible.size(); start += columns) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setClipChildren(false);
-            row.setClipToPadding(false);
+            LinearLayout row = start == 0 ? dock : new LinearLayout(this);
+            if (start > 0) {
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setClipChildren(false);
+                row.setClipToPadding(false);
+                grid.addView(row);
+            }
             for (int i = start; i < start + columns; i++) {
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-                lp.setMargins(gap / 2, gap / 2, gap / 2, gap / 2);
+                lp.setMargins(gap / 2, 0, gap / 2, gap / 2);
                 // Pad the last row so its tiles are the same size as the others.
                 row.addView(i < visible.size() ? tile(apps.get(visible.get(i))) : new Space(this), lp);
             }
-            grid.addView(row);
+        }
+
+        // Keep the shelf on a top-row app, even when focus is elsewhere.
+        if (!visible.isEmpty()) {
+            int inDock = Math.min(columns, visible.size());
+            boolean shelfInDock = shelfKey != null && visible.subList(0, inDock).contains(shelfKey);
+            showShelf(apps.get(shelfInDock ? shelfKey : visible.get(0)));
         }
 
         if (!hadTileFocus) return;
@@ -165,19 +207,89 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private TextView sectionTitle(int text) {
-        TextView title = new TextView(this);
-        title.setText(text);
-        title.setTextColor(getColor(R.color.text_secondary));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        int gap = getResources().getDimensionPixelSize(R.dimen.tile_gap);
-        title.setPadding(gap / 2, 0, 0, gap / 2);
-        return title;
+    private TextView emptyText() {
+        TextView text = new TextView(this);
+        text.setText(R.string.no_apps);
+        text.setTextColor(getColor(R.color.text_secondary));
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        text.setGravity(Gravity.CENTER_HORIZONTAL);
+        return text;
+    }
+
+    /** Sizes the top shelf to the screen, so the dock sits about halfway down and the next row peeks in below. */
+    private void sizeShelf() {
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int contentWidth = metrics.widthPixels - 2 * getResources().getDimensionPixelSize(R.dimen.safe_horizontal);
+        shelf.getLayoutParams().height = Math.round(metrics.heightPixels * 0.52f);
+
+        ViewGroup.LayoutParams banner = shelfBanner.getLayoutParams();
+        banner.width = Math.round(contentWidth * 0.40f);
+        banner.height = banner.width * 9 / 16;
+        shelfTitle.setMaxWidth(Math.round(contentWidth * 0.52f));
+    }
+
+    /** Shows {@code app} in the top shelf, cross-fading the banner, title and backdrop. Null clears it. */
+    private void showShelf(AppEntry app) {
+        String key = app == null ? null : app.key;
+        if (key != null && key.equals(shelfKey) && shelfBanner.getAlpha() > 0) return;
+        shelfKey = key;
+        shelfBanner.animate().cancel();
+        backdrop.animate().cancel();
+        if (app == null) {
+            shelfTitle.setText(null);
+            shelfHint.setVisibility(View.INVISIBLE);
+            shelfBanner.setAlpha(0f);
+            backdrop.setAlpha(0f);
+            return;
+        }
+
+        shelfTitle.setText(app.label);
+        shelfHint.setVisibility(View.VISIBLE);
+        shelfTitle.setAlpha(0f);
+        shelfTitle.animate().alpha(1f).setDuration(250).start();
+
+        // The tile shows the same drawable, so give the shelf its own copy.
+        Drawable image = copy(app.banner != null ? app.banner : app.icon);
+        shelfBanner.setScaleType(app.banner != null ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.CENTER_INSIDE);
+        int pad = app.banner != null ? 0 : shelfBanner.getLayoutParams().height / 4;
+        shelfBanner.setPadding(pad, pad, pad, pad);
+        shelfBanner.setImageDrawable(image);
+        shelfBanner.setAlpha(0f);
+        shelfBanner.setScaleX(0.96f);
+        shelfBanner.setScaleY(0.96f);
+        shelfBanner.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(300).start();
+
+        backdrop.setImageBitmap(backdrops.get(app));
+        backdrop.setAlpha(0.4f);
+        backdrop.animate().alpha(1f).setDuration(450).start();
+    }
+
+    private Drawable copy(Drawable drawable) {
+        Drawable.ConstantState state = drawable.getConstantState();
+        return state != null ? state.newDrawable(getResources()).mutate() : drawable;
+    }
+
+    /** The top row shows its app in the shelf; any lower row scrolls the shelf away, as on Apple TV. */
+    private void onTileFocused(TileView tile) {
+        boolean inDock = tile.getParent() == dock;
+        if (inDock) {
+            showShelf(tile.app);
+            scroll.smoothScrollTo(0, 0);
+        } else {
+            // After ScrollView's own scroll-to-focus, make sure the shelf is out of sight.
+            scroll.post(() -> {
+                int shelfGone = dock.getTop() - getResources().getDimensionPixelSize(R.dimen.safe_vertical);
+                if (scroll.getScrollY() < shelfGone) scroll.smoothScrollTo(0, shelfGone);
+            });
+        }
     }
 
     private TileView tile(AppEntry app) {
         TileView tile = new TileView(this, app);
         tile.setOnClickListener(v -> launch(app));
+        tile.setOnFocusChangeListener((v, focused) -> {
+            if (focused) onTileFocused(tile);
+        });
         tile.setOnLongClickListener(v -> {
             showOptions(app);
             return true;
@@ -191,12 +303,14 @@ public final class MainActivity extends Activity {
     }
 
     private void focusTile(String key) {
+        List<LinearLayout> rows = new ArrayList<>();
+        rows.add(dock);
         for (int r = 0; r < grid.getChildCount(); r++) {
-            View row = grid.getChildAt(r);
-            if (!(row instanceof LinearLayout)) continue;
-            LinearLayout tiles = (LinearLayout) row;
-            for (int c = 0; c < tiles.getChildCount(); c++) {
-                View child = tiles.getChildAt(c);
+            if (grid.getChildAt(r) instanceof LinearLayout) rows.add((LinearLayout) grid.getChildAt(r));
+        }
+        for (LinearLayout row : rows) {
+            for (int c = 0; c < row.getChildCount(); c++) {
+                View child = row.getChildAt(c);
                 if (child instanceof TileView && ((TileView) child).app.key.equals(key)) {
                     child.requestFocus();
                     return;

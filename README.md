@@ -1,7 +1,8 @@
 # CleanTV
 
-A clean, ad-free home screen for Android TV and Google TV. You get a clock, your apps as big 16:9 tiles,
-and nothing else: no sponsored rows, no recommendations, no tracking. It has no `INTERNET` permission,
+A clean, ad-free home screen for Android TV and Google TV, styled after Apple TV: a top shelf with the selected
+app over a blurred backdrop, a frosted dock for your favourite row, and tiles that lift and tilt as you move.
+No sponsored rows, no recommendations, no tracking. It has no `INTERNET` permission,
 so it can't go online.
 
 Inspired by [cleanyourtv](https://github.com/Gathin23/cleanyourtv) (MIT). Written from scratch, with no code
@@ -9,7 +10,10 @@ copied.
 
 ## Features
 
-- Every TV app as a tile with its banner; phone-only apps get their icon and name instead.
+- Apple TV-style layout: the top row of apps sits in a frosted dock, and the selected one is shown large in
+  the top shelf over a blurred copy of its banner. Moving down scrolls the shelf away.
+- Tiles grow, lift, tilt towards the direction you moved and catch a sweep of light; the name appears below.
+- Every TV app as a tile with its banner; phone-only apps get their icon instead.
 - Reorder tiles: long-press OK (or press Menu) on a tile, then move it left, right, up, down or to the start.
 - Hide apps you never use, and bring them back from **Hidden apps**.
 - Settings button, and Home always brings you back to the first tile.
@@ -53,8 +57,9 @@ Some Google TV builds keep bringing back their own launcher. If yours does, you 
 | `app/src/main/java/com/cleantv/launcher/MainActivity.java` | Home screen: grid, focus, tile menu, hidden apps |
 | `AppRepository.java` / `AppEntry.java` | Finds the launchable apps, with their banners and icons |
 | `AppOrder.java` / `LayoutStore.java` | Tile order and hidden apps (pure logic, plus SharedPreferences) |
-| `TileView.java` | The 16:9 tile and its focus animation |
-| `app/src/main/res/` | Colors, layout, strings. Change `values/integers.xml` → `columns` for more or fewer tiles per row |
+| `TileView.java` | The 16:9 tile and its focus animation (lift, tilt, shine, caption) |
+| `Backdrops.java` / `Blur.java` | The blurred backdrop, made cheaply so it runs on older boxes |
+| `app/src/main/res/` | Colors, layout, strings. Change `values/integers.xml` → `columns` for more or fewer tiles per row (the dock is the first row) |
 
 ## License
 

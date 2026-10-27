@@ -1,16 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true">
-        <shape>
-            <solid android:color="@color/tile_focused" />
-            <stroke android:width="3dp" android:color="@color/focus_ring" />
-            <corners android:radius="@dimen/tile_radius" />
-        </shape>
-    </item>
-    <item>
-        <shape>
-            <solid android:color="@color/tile" />
-            <corners android:radius="@dimen/tile_radius" />
-        </shape>
-    </item>
-</selector>
+<!-- No focus ring: a focused tile shows itself by growing, lifting and showing its name, as on Apple TV. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/tile" />
+    <corners android:radius="@dimen/tile_radius" />
+</shape>

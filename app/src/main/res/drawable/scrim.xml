@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Darkens the blurred backdrop, most at the bottom, so text and tiles stay readable. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="270"
+        android:centerColor="#8C000000"
+        android:endColor="#EB000000"
+        android:startColor="#40000000" />
+</shape>
