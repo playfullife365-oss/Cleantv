@@ -38,6 +38,20 @@ the home screen like any other app and press **Start test** (or Play/Pause on th
 - Permissions: `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE`. No location permission, so it doesn't
   show the network's name.
 
+## CleanTV Speed for the Mac
+
+`mac/CleanTV Speed.command` is the same speed meter and dashboard for a Mac, as one script that needs nothing
+beyond what macOS ships (bash, curl, awk). It shows how the Mac is connected (Wi-Fi band, generation, signal,
+noise and link rate, or Ethernet), runs the test against `speed.cloudflare.com`, saves the result and opens the
+dashboard in your browser. Put it on your Desktop with:
+
+```sh
+bash ~/Downloads/"CleanTV Speed.command" --install
+```
+
+Then double-click **CleanTV Speed** on the Desktop. `--wifi` only shows the connection; `--dashboard` only opens
+the dashboard. Results stay on the Mac, in `~/Library/Application Support/CleanTV Speed`.
+
 ## Build
 
 Requires JDK 17 and the Android SDK (platform 34).
