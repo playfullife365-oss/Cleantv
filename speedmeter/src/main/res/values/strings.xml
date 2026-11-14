@@ -34,4 +34,29 @@
         <item>Good</item>
         <item>Excellent</item>
     </string-array>
+    <string name="dashboard">Dashboard</string>
+    <string name="run_test">Run a test</string>
+    <string name="clear_history">Clear history</string>
+    <string name="clear_confirm">Delete all saved tests?</string>
+    <string name="clear">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="tests">Tests</string>
+    <string name="now">Now: %1$s</string>
+    <string name="avg_best">Avg %1$s · Best %2$s</string>
+    <string name="since">since %1$s</string>
+    <string name="speed_over_time">Speed over the last tests</string>
+    <string name="chart_hint">Select the chart, then use left and right to see each test.</string>
+    <string name="chart_description">Download and upload speed over the last %1$d tests</string>
+    <string name="chart_card_line">%1$s %2$s %3$s</string>
+    <string name="connections">Connections</string>
+    <string name="recent_tests">Recent tests</string>
+    <string name="col_connection">Connection</string>
+    <string name="col_when">When</string>
+    <string name="col_down">Down</string>
+    <string name="col_up">Up</string>
+    <string name="col_ping">Ping</string>
+    <string name="col_signal">Signal</string>
+    <string name="col_tests">Tests</string>
+    <string name="units_note">Down and Up in Mbps, Ping in ms, Signal in dBm.</string>
+    <string name="no_tests">No tests yet. Run one and the results will show up here.</string>
 </resources>

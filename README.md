@@ -30,6 +30,11 @@ the home screen like any other app and press **Start test** (or Play/Pause on th
 - Measures ping and jitter, then download and upload, on a dial that follows along live.
 - Tests against Cloudflare's public speed test (`speed.cloudflare.com`). About 25 seconds; on a fast connection
   a run can use 1 GB or more. It stops when you leave the app.
+- **Dashboard**: every finished test is saved on the TV (the last 100) and shown on the Dashboard screen:
+  latest, average and best download, upload and ping; a chart of download and upload over the last 30 tests
+  (select it and use left/right to read each test); each connection the TV has been tested on (Wi-Fi band and
+  generation, or Ethernet) with its average speeds and signal; and the most recent tests. Results never leave
+  the TV, and **Clear history** deletes them.
 - Permissions: `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE`. No location permission, so it doesn't
   show the network's name.
 
@@ -76,6 +81,8 @@ Some Google TV builds keep bringing back their own launcher. If yours does, you 
 | `TileView.java` | The 16:9 tile and its focus animation (lift, tilt, shine, caption) |
 | `Backdrops.java` / `Blur.java` | The blurred backdrop, made cheaply so it runs on older boxes |
 | `speedmeter/…/SpeedTest.java` | The speed test: ping, then several parallel download and upload streams |
+| `speedmeter/…/DashboardActivity.java` / `HistoryChart.java` | The dashboard and its chart |
+| `speedmeter/…/History.java` / `TestRecord.java` / `HistoryStore.java` | Saved tests and the dashboard's figures (pure logic, plus SharedPreferences) |
 | `speedmeter/…/GaugeView.java` / `SpeedMath.java` | The dial, and the arithmetic behind it (Mbps, dial scale, jitter, signal) |
 | `app/src/main/res/` | Colors, layout, strings. Change `values/integers.xml` → `columns` for more or fewer tiles per row (the dock is the first row) |
 

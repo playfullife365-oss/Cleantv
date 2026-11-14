@@ -9,6 +9,10 @@
     <color name="text_secondary">#99F5F5F7</color>
     <color name="accent">#FFFFFFFF</color>
     <color name="ping">#FFFFD60A</color>
-    <color name="download">#FF64D2FF</color>
-    <color name="upload">#FFBF5AF2</color>
+    <!-- Download and upload: a pair checked to stay apart for colour-blind viewers on the dark background. -->
+    <color name="download">#FF3987E5</color>
+    <color name="upload">#FFD95926</color>
+    <color name="chart_surface">#FF1A1C22</color>
+    <color name="grid">#1FFFFFFF</color>
+    <color name="tooltip">#FF2C2F37</color>
 </resources>
