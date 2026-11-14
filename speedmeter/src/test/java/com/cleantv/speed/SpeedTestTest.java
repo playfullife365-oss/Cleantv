@@ -5,18 +5,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
@@ -24,45 +19,18 @@ import org.junit.Test;
 
 /** Runs the real test against a local server that speaks the same two endpoints as Cloudflare's. */
 public class SpeedTestTest {
-    private HttpServer server;
+    private LocalSpeedServer server;
     private String url;
 
     @Before
     public void startServer() throws IOException {
-        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/__down", exchange -> {
-            String query = exchange.getRequestURI().getQuery();
-            long bytes = Long.parseLong(query.substring(query.indexOf('=') + 1));
-            exchange.sendResponseHeaders(200, bytes == 0 ? -1 : bytes);
-            byte[] chunk = new byte[64 * 1024];
-            try (OutputStream out = exchange.getResponseBody()) {
-                for (long left = bytes; left > 0; left -= chunk.length) {
-                    out.write(chunk, 0, (int) Math.min(chunk.length, left));
-                }
-            } catch (IOException e) {
-                // The client hung up at the end of the phase.
-            }
-        });
-        server.createContext("/__up", exchange -> {
-            try (InputStream in = exchange.getRequestBody()) {
-                byte[] buffer = new byte[64 * 1024];
-                while (in.read(buffer) != -1) {
-                    // Discard.
-                }
-                exchange.sendResponseHeaders(200, -1);
-            } catch (IOException e) {
-                // The client hung up at the end of the phase.
-            }
-            exchange.close();
-        });
-        server.setExecutor(Executors.newCachedThreadPool());
-        server.start();
-        url = "http://127.0.0.1:" + server.getAddress().getPort();
+        server = new LocalSpeedServer();
+        url = server.url();
     }
 
     @After
-    public void stopServer() {
-        server.stop(0);
+    public void stopServer() throws IOException {
+        server.close();
     }
 
     private static SpeedTest.Settings quick() {
