@@ -20,16 +20,31 @@ copied.
 - Picks up app installs, updates and removals right away.
 - Plain Java on the Android framework, with no libraries. minSdk 26 (Android 8.0).
 
+## CleanTV Speed
+
+A Wi-Fi speed meter for the TV, in its own app (`speedmeter/`), so the launcher itself stays offline. Open it from
+the home screen like any other app and press **Start test** (or Play/Pause on the remote).
+
+- Shows how the TV is connected: Wi-Fi band (2.4, 5 or 6 GHz), Wi-Fi generation, signal strength in dBm and the
+  link rate to the router, or Ethernet.
+- Measures ping and jitter, then download and upload, on a dial that follows along live.
+- Tests against Cloudflare's public speed test (`speed.cloudflare.com`). About 25 seconds; on a fast connection
+  a run can use 1 GB or more. It stops when you leave the app.
+- Permissions: `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE`. No location permission, so it doesn't
+  show the network's name.
+
 ## Build
 
 Requires JDK 17 and the Android SDK (platform 34).
 
 ```sh
 ./gradlew assembleRelease        # app/build/outputs/apk/release/app-release.apk
+                                 # speedmeter/build/outputs/apk/release/speedmeter-release.apk
 ./gradlew testDebugUnitTest      # JVM unit tests
 ```
 
-Every push also builds the APK on GitHub Actions. Download it from the run's **cleantv-launcher** artifact.
+Every push also builds the APKs on GitHub Actions. Download them from the run's **cleantv-launcher** and
+**cleantv-speed** artifacts.
 
 ## Install on your TV
 
@@ -39,6 +54,7 @@ Every push also builds the APK on GitHub Actions. Download it from the run's **c
    ```sh
    adb connect <tv-ip>:5555
    adb install -r app-release.apk
+   adb install -r speedmeter-release.apk   # optional: the speed meter
    ```
 3. Press Home and pick **CleanTV**. If the TV doesn't ask, set it from the command line:
    ```sh
@@ -59,6 +75,8 @@ Some Google TV builds keep bringing back their own launcher. If yours does, you 
 | `AppOrder.java` / `LayoutStore.java` | Tile order and hidden apps (pure logic, plus SharedPreferences) |
 | `TileView.java` | The 16:9 tile and its focus animation (lift, tilt, shine, caption) |
 | `Backdrops.java` / `Blur.java` | The blurred backdrop, made cheaply so it runs on older boxes |
+| `speedmeter/…/SpeedTest.java` | The speed test: ping, then several parallel download and upload streams |
+| `speedmeter/…/GaugeView.java` / `SpeedMath.java` | The dial, and the arithmetic behind it (Mbps, dial scale, jitter, signal) |
 | `app/src/main/res/` | Colors, layout, strings. Change `values/integers.xml` → `columns` for more or fewer tiles per row (the dock is the first row) |
 
 ## License

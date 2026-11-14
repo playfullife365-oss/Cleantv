@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "cleantv"
-include ':app'
+include ':app', ':speedmeter'

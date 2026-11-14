@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/safe_horizontal"
+    android:paddingTop="@dimen/safe_vertical"
+    android:paddingRight="@dimen/safe_horizontal"
+    android:paddingBottom="@dimen/safe_vertical">
+
+    <!-- The dial, as large as fits on the left half. -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <com.cleantv.speed.GaugeView
+            android:id="@+id/gauge"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="40dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/title"
+            android:textColor="@color/text_primary"
+            android:textSize="34sp" />
+
+        <!-- What we're connected through: Wi-Fi band and generation, signal and link rate. -->
+        <TextView
+            android:id="@+id/connection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/connection_detail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <include
+                android:id="@+id/download"
+                layout="@layout/stat" />
+
+            <Space
+                android:layout_width="@dimen/stat_gap"
+                android:layout_height="0dp" />
+
+            <include
+                android:id="@+id/upload"
+                layout="@layout/stat" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/stat_gap"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <include
+                android:id="@+id/ping"
+                layout="@layout/stat" />
+
+            <Space
+                android:layout_width="@dimen/stat_gap"
+                android:layout_height="0dp" />
+
+            <include
+                android:id="@+id/jitter"
+                layout="@layout/stat" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/start"
+            style="@style/Pill"
+            android:layout_marginTop="28dp"
+            android:text="@string/start" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/idle_status"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+    </LinearLayout>
+</LinearLayout>

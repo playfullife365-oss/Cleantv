@@ -23,3 +23,8 @@ jobs:
           name: cleantv-launcher
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cleantv-speed
+          path: speedmeter/build/outputs/apk/release/*.apk
+          if-no-files-found: error

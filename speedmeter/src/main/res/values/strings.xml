@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CleanTV Speed</string>
+    <string name="title">Network speed</string>
+    <string name="start">Start test</string>
+    <string name="stop">Stop</string>
+    <string name="again">Test again</string>
+    <string name="ping">Ping</string>
+    <string name="jitter">Jitter</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="mbps">Mbps</string>
+    <string name="ms">ms</string>
+    <string name="no_value">—</string>
+    <string name="ready">Ready</string>
+    <string name="idle_status">Tests against speed.cloudflare.com for about 25 seconds. A fast connection can use 1 GB or more.</string>
+    <string name="testing">Testing…</string>
+    <string name="stopped">Stopped.</string>
+    <string name="finished">Done.</string>
+    <string name="finished_link">Done. The TV\'s Wi-Fi link to the router runs at %1$d Mbps. Over Wi-Fi, real speed is usually about half the link rate.</string>
+    <string name="failed">Couldn\'t reach the test server. Check the connection and try again.</string>
+    <string name="offline">Not connected</string>
+    <string name="offline_detail">Connect to Wi-Fi or Ethernet in Settings.</string>
+    <string name="wifi">Wi-Fi</string>
+    <string name="ethernet">Ethernet</string>
+    <string name="other_network">Connected</string>
+    <string name="ethernet_detail">Wired connection</string>
+    <string name="signal_link">Signal: %1$s (%2$d dBm) · Link %3$d Mbps</string>
+    <string name="signal_only">Signal: %1$s (%2$d dBm)</string>
+    <string-array name="signal_levels">
+        <item>Very weak</item>
+        <item>Weak</item>
+        <item>Fair</item>
+        <item>Good</item>
+        <item>Excellent</item>
+    </string-array>
+</resources>
