@@ -49,8 +49,10 @@ dashboard in your browser. Put it on your Desktop with:
 bash ~/Downloads/"CleanTV Speed.command" --install
 ```
 
-Then double-click **CleanTV Speed** on the Desktop. `--wifi` only shows the connection; `--dashboard` only opens
-the dashboard. Results stay on the Mac, in `~/Library/Application Support/CleanTV Speed`.
+Then double-click **CleanTV Speed** on the Desktop. After the test it says what's slowing the connection and how to
+fix it: weak signal, interference, the 2.4 GHz band, a crowded channel, a narrow channel, older Wi-Fi modes, and
+whether delay or loss is on the Wi-Fi link to the router or beyond it on the provider's side. `--diagnose` runs
+only that, without a speed test; `--wifi` only shows the connection; `--dashboard` only opens the dashboard. Results stay on the Mac, in `~/Library/Application Support/CleanTV Speed`.
 
 ## Build
 

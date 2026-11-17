@@ -5,6 +5,7 @@
 #
 #   bash "CleanTV Speed.command" --install   copy it to the Desktop, ready to double-click
 #   bash "CleanTV Speed.command" --wifi      only show the connection, no test
+#   bash "CleanTV Speed.command" --diagnose  show the connection and what's slowing it down, no speed test
 #   bash "CleanTV Speed.command" --dashboard only open the dashboard
 #
 # Uses only what every Mac has (bash, curl, awk). Results stay on this Mac, in
@@ -39,8 +40,10 @@ install_to_desktop() {
 # Sets CONN_KIND (wifi, ethernet, other or none), CONN_NAME, CONN_BAND, CONN_PHY, CONN_RSSI, CONN_NOISE, CONN_RATE.
 read_connection() {
     CONN_KIND=none; CONN_NAME=""; CONN_BAND=""; CONN_PHY=""; CONN_RSSI=""; CONN_NOISE=""; CONN_RATE=""
+    CONN_CHANNEL=""; CONN_WIDTH=""; CONN_CROWD=0; CONN_NEIGHBOURS=0; CONN_MAC_BEST=""; CONN_GATEWAY=""
     local iface wifi_iface
     iface=$(route -n get default 2>/dev/null | awk '/interface:/ {print $2}')
+    CONN_GATEWAY=$(route -n get default 2>/dev/null | awk '/gateway:/ {print $2}')
     [ -z "$iface" ] && return
     wifi_iface=$(networksetup -listallhardwareports 2>/dev/null \
         | awk '/Hardware Port: (Wi-Fi|AirPort)/ {getline; print $2; exit}')
@@ -54,21 +57,34 @@ read_connection() {
     fi
 }
 
-# Reads the current network out of system_profiler's Wi-Fi report.
+# Reads the current network out of system_profiler's Wi-Fi report, plus the neighbouring networks it can hear.
 parse_wifi() {
     local parsed
     parsed=$(printf '%s\n' "$1" | awk '
-        /Current Network Information:/ { inside = 1; getline; name = $0; sub(/^[ \t]+/, "", name); sub(/:$/, "", name); next }
-        /Other Local Wi-Fi Networks:/ { inside = 0 }
+        /Supported PHY Modes:/ { supported = $0 }
+        /Current Network Information:/ { inside = 1; getline; name = $0; sub(/^[ \t]+/, "", name); sub(/:$/, "", name); gsub(/\|/, " ", name); next }
+        /Other Local Wi-Fi Networks:/ { inside = 0; others = 1 }
         inside && /PHY Mode:/ { phy = $NF }
         inside && /Channel:/ {
+            channel = $2
             # macOS writes the 2.4 GHz band as "2GHz".
             if (match($0, /[0-9.]+GHz/)) { band = substr($0, RSTART, RLENGTH - 3); if (band == "2") band = "2.4"; band = band " GHz" }
+            if (match($0, /[0-9]+MHz/)) width = substr($0, RSTART, RLENGTH - 3)
         }
         inside && /Signal \/ Noise:/ { rssi = $4; noise = $7 }
         inside && /Transmit Rate:/ { rate = $NF }
-        END { printf "%s\t%s\t%s\t%s\t%s\t%s\n", name, band, phy, rssi, noise, rate }')
-    IFS=$'\t' read -r CONN_NAME CONN_BAND CONN_PHY CONN_RSSI CONN_NOISE CONN_RATE <<< "$parsed"
+        others && /Channel:/ { neighbour[++n] = $2 }
+        END {
+            for (i = 1; i <= n; i++) {
+                if (neighbour[i] == channel) same++
+                # On 2.4 GHz, channels closer than 5 apart overlap and interfere.
+                else if (band == "2.4 GHz" && neighbour[i] < 15 && channel < 15 && (neighbour[i] - channel < 5 && channel - neighbour[i] < 5)) same++
+            }
+            printf "%s|%s|%s|%s|%s|%s|%s|%s|%d|%d|%s\n", name, band, phy, rssi, noise, rate, channel, width, same, n,
+                (supported ~ /ax/ ? "ax" : supported ~ /ac/ ? "ac" : "")
+        }')
+    IFS='|' read -r CONN_NAME CONN_BAND CONN_PHY CONN_RSSI CONN_NOISE CONN_RATE CONN_CHANNEL CONN_WIDTH \
+        CONN_CROWD CONN_NEIGHBOURS CONN_MAC_BEST <<< "$parsed"
     # Recent macOS hides the network name from apps without location access.
     case "$CONN_NAME" in *redacted*|"") CONN_NAME="" ;; esac
 }
@@ -109,9 +125,7 @@ show_connection() {
                 [[ "$CONN_RATE" =~ ^[0-9]+$ ]] && detail="$detail · Link $CONN_RATE Mbps"
                 echo "$detail"
             fi
-            if [ "$CONN_BAND" = "2.4 GHz" ]; then
-                echo "  ${dim}Tip: on 2.4 GHz. If your router also offers 5 GHz and you're close to it, that is usually faster.${reset}"
-            fi ;;
+            ;;
     esac
 }
 
@@ -172,6 +186,110 @@ measure_transfer() {
     return $status
 }
 
+# ---------------------------------------------------------------------------------------------------------------
+# Diagnosis: what is slowing things down, and what to do about it
+# ---------------------------------------------------------------------------------------------------------------
+
+# Prints "<average ms> <loss %>" for a few pings to $1, or nothing when ping can't run.
+ping_stats() {
+    ping -c 5 "$1" 2>/dev/null | awk '
+        /packet loss/ { if (match($0, /[0-9.]+% packet loss/)) loss = substr($0, RSTART, RLENGTH - 13) }
+        /min\/avg\/max/ { split($0, parts, "="); split(parts[2], v, "/"); avg = v[2] + 0 }
+        END { if (loss != "") printf "%.1f %s\n", avg, loss }'
+}
+
+FINDINGS=0
+finding() {
+    FINDINGS=$((FINDINGS + 1))
+    echo "  ${bold}$FINDINGS. $1${reset}"
+    shift
+    local line
+    for line in "$@"; do echo "     $line"; done
+}
+
+# Above, at or below a threshold, with decimals; awk because bash only compares whole numbers.
+above() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a + 0 > b + 0) }'; }
+
+diagnose() {
+    echo
+    echo "${bold}What's slowing it down${reset}"
+    FINDINGS=0
+    local router_url="your router's settings"
+    [ -n "$CONN_GATEWAY" ] && router_url="your router's settings at http://$CONN_GATEWAY (password on its label)"
+
+    if [ "$CONN_KIND" = none ]; then
+        finding "This Mac isn't connected" "Pick your network from the Wi-Fi menu in the menu bar."
+        return
+    fi
+
+    # Where is the delay: between this Mac and the router, or beyond the router?
+    local router="" internet="" r_avg r_loss i_avg i_loss
+    [ -n "$CONN_GATEWAY" ] && router=$(ping_stats "$CONN_GATEWAY")
+    internet=$(ping_stats 1.1.1.1)
+    read -r r_avg r_loss <<< "${router:-}"
+    read -r i_avg i_loss <<< "${internet:-}"
+    if [ -n "$router" ]; then
+        echo "  ${dim}To the router: ${r_avg} ms, ${r_loss}% lost · To the internet: ${i_avg:-?} ms, ${i_loss:-?}% lost${reset}"
+    fi
+
+    if [ -n "$router" ] && { [ -z "$internet" ] || above "${i_loss:-100}" 99; } && ! above "$r_loss" 99; then
+        finding "The router is reachable but the internet isn't" \
+            "The problem is the line into the house, not Wi-Fi. On the Zyxel, check the INTERNET light:" \
+            "if it's off, unplug the router for 30 seconds and plug it back in. If it stays off, call your provider."
+    elif [ -n "$router" ] && { above "$r_loss" 0 || above "$r_avg" 15; }; then
+        finding "The Wi-Fi link to the router is unreliable (${r_avg} ms, ${r_loss}% lost; a good link is under 5 ms, 0% lost)" \
+            "This is the Wi-Fi itself. The fixes below about signal, band and channel are the ones that matter."
+    elif [ -n "$internet" ] && { above "$i_loss" 1 || above "$i_avg" 80; }; then
+        finding "The connection beyond the router is slow (${i_avg} ms, ${i_loss}% lost)" \
+            "Wi-Fi is fine; the delay is on your provider's side. Restart the router, and if it keeps happening," \
+            "report it to your provider with these figures."
+    fi
+
+    if [ "$CONN_KIND" = wifi ]; then
+        if [[ "$CONN_RSSI" =~ ^-[0-9]+$ ]] && [ "$CONN_RSSI" -lt -67 ]; then
+            finding "Signal on the weak side ($CONN_RSSI dBm; -67 or better is good)" \
+                "Move the router out of cabinets and away from metal, TVs and microwaves, ideally up high and central." \
+                "Or bring the Mac closer, use an Ethernet cable, or add a mesh point between them."
+        fi
+        if [[ "$CONN_RSSI" =~ ^-[0-9]+$ ]] && [[ "$CONN_NOISE" =~ ^-[0-9]+$ ]] && [ $((CONN_RSSI - CONN_NOISE)) -lt 25 ]; then
+            finding "Lots of interference (signal only $((CONN_RSSI - CONN_NOISE)) dB above the noise; 25+ is good)" \
+                "Keep the router away from microwaves, cordless phones, baby monitors and Bluetooth hubs," \
+                "and try a different channel (below)."
+        fi
+        if [ "$CONN_BAND" = "2.4 GHz" ]; then
+            finding "On the slow 2.4 GHz band" \
+                "Your Zyxel also broadcasts 5 GHz, which is several times faster within a room or two." \
+                "If both bands share one name, the Mac picks; otherwise choose the 5 GHz network in the Wi-Fi menu," \
+                "or in $router_url, give both bands the same name so devices move to 5 GHz on their own."
+        fi
+        if [ "${CONN_CROWD:-0}" -ge 3 ]; then
+            finding "Crowded channel ($CONN_CROWD nearby networks share channel ${CONN_CHANNEL})" \
+                "In $router_url, under Wireless, set the channel to Auto, or pick one the neighbours don't use" \
+                "(on 2.4 GHz only 1, 6 or 11)."
+        fi
+        if [ "$CONN_BAND" != "2.4 GHz" ] && [ -n "$CONN_WIDTH" ] && [ "$CONN_WIDTH" -lt 80 ]; then
+            finding "Narrow ${CONN_WIDTH} MHz channel on ${CONN_BAND:-5 GHz}" \
+                "In $router_url, under Wireless → 5 GHz, set the bandwidth to 80 MHz. That roughly doubles the top speed."
+        fi
+        if [ "$CONN_MAC_BEST" = ax ] && [ -n "$CONN_PHY" ] && [ "$CONN_PHY" != "802.11ax" ] && [ "$CONN_PHY" != "802.11be" ]; then
+            finding "Connected with older Wi-Fi ($CONN_PHY) though both the Mac and the Zyxel T-56 support Wi-Fi 6" \
+                "In $router_url, under Wireless, make sure 802.11ax (Wi-Fi 6) mode is on."
+        fi
+    fi
+
+    if [ -n "${RESULT_DOWN:-}" ] && [ "$CONN_KIND" = wifi ] && [[ "$CONN_RATE" =~ ^[0-9]+$ ]] && [ "$FINDINGS" -eq 0 ] \
+        && awk -v d="$RESULT_DOWN" -v r="$CONN_RATE" 'BEGIN { exit !(d < r * 0.25) }'; then
+        finding "Wi-Fi looks healthy, but the speed is well under what it could carry" \
+            "That points at your internet plan or the line. Compare $(fmt "$RESULT_DOWN") Mbps with the speed you pay for;" \
+            "test again at a quiet hour, and check other devices aren't streaming or downloading meanwhile."
+    fi
+
+    if [ "$FINDINGS" -eq 0 ]; then
+        echo "  Nothing wrong found. Signal, band, channel and the link to the router all look good."
+    fi
+    echo "  ${dim}Also worth doing: restart the router now and then, and keep its firmware up to date.${reset}"
+}
+
 fmt() {
     awk -v v="$1" 'BEGIN { if (v == "") print "—"; else if (v < 10) printf "%.1f", v; else printf "%.0f", v }'
 }
@@ -201,6 +319,7 @@ run_test() {
     if [ "$CONN_KIND" = wifi ] && [[ "$CONN_RATE" =~ ^[0-9]+$ ]] && [ -n "$down" ]; then
         echo "  ${dim}Wi-Fi link to the router: $CONN_RATE Mbps. Over Wi-Fi, real speed is usually about half of that.${reset}"
     fi
+    RESULT_PING=$ping; RESULT_JITTER=$jitter; RESULT_DOWN=$down; RESULT_UP=$up
     save_result "$ping" "$jitter" "$down" "$up"
 }
 
@@ -238,6 +357,7 @@ write_dashboard() {
 case "${1:-}" in
     --install) install_to_desktop; exit ;;
     --wifi) read_connection; show_connection; exit ;;
+    --diagnose) read_connection; show_connection; diagnose; exit ;;
     --dashboard) write_dashboard; open "$DASHBOARD" 2>/dev/null || echo "Dashboard: $DASHBOARD"; exit ;;
 esac
 
@@ -248,6 +368,7 @@ read_connection
 if show_connection; then
     run_test
 fi
+diagnose
 write_dashboard
 echo
 echo "Opening the dashboard…"
